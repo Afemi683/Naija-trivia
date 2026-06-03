@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Naija Trivia"
+version = "1.0.0"
+id = "artifacts/naija-trivia"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 22707
+
+[services.development]
+run = "pnpm --filter @workspace/naija-trivia run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/naija-trivia", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/naija-trivia", "run", "serve" ]
+
+[services.env]
+PORT = "22707"
+BASE_PATH = "/"
