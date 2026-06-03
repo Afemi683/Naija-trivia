@@ -27,6 +27,7 @@ function RootLayoutNav() {
       <Stack.Screen name="quiz" options={{ gestureEnabled: false }} />
       <Stack.Screen name="results" options={{ gestureEnabled: false }} />
       <Stack.Screen name="leaderboard" />
+      <Stack.Screen name="daily" />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );
