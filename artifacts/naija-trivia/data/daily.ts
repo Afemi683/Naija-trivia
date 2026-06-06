@@ -1,13 +1,13 @@
-import { Question, questions } from "./questions";
+import type { Question } from "./question-types";
+import { questions } from "./questions";
 
-export const DAILY_QUESTION_COUNT = 5;
+export const DAILY_QUESTION_COUNT = 20;
 
 /**
  * Deterministically pick questions for a given date string (YYYY-MM-DD).
- * Same date always yields the same set of questions.
+ * Same date always yields the same set of questions — 20 mixed across all categories.
  */
 export function getDailyQuestions(dateStr: string): Question[] {
-  // Simple deterministic shuffle using date as seed
   const seed = dateStr
     .replace(/-/g, "")
     .split("")
@@ -20,25 +20,29 @@ export function getDailyQuestions(dateStr: string): Question[] {
 
   const indexed = questions.map((q, i) => ({ q, sort: seededRandom(i) }));
   indexed.sort((a, b) => a.sort - b.sort);
+  const shuffled = indexed.map((x) => x.q);
 
-  // Ensure category spread: try to get at least 1 from each category
-  const history = indexed.map((x) => x.q);
+  // Ensure balanced category spread: ~7 history, ~7 geography, ~6 current-affairs
   const byCategory: Record<string, Question[]> = {};
-  for (const q of history) {
+  for (const q of shuffled) {
     byCategory[q.category] = byCategory[q.category] ?? [];
     byCategory[q.category].push(q);
   }
 
   const result: Question[] = [];
-  const cats = ["history", "geography", "current-affairs"] as const;
-  for (const cat of cats) {
+  const targets: [string, number][] = [
+    ["history", 7],
+    ["geography", 7],
+    ["current-affairs", 6],
+  ];
+
+  for (const [cat, count] of targets) {
     const pool = byCategory[cat] ?? [];
-    if (pool.length > 0) result.push(pool[0]);
-    if (result.length >= DAILY_QUESTION_COUNT) break;
+    result.push(...pool.slice(0, count));
   }
 
-  // Fill remaining slots with next from shuffled pool (not already picked)
-  for (const q of history) {
+  // Fill any remaining slots
+  for (const q of shuffled) {
     if (result.length >= DAILY_QUESTION_COUNT) break;
     if (!result.includes(q)) result.push(q);
   }

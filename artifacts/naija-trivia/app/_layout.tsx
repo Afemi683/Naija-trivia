@@ -14,13 +14,23 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { GameProvider } from "@/context/GameContext";
+import LoginScreen from "@/app/login";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const { isLoading, user, isGuest } = useAuth();
+
+  if (isLoading) return null;
+
+  if (!user && !isGuest) {
+    return <LoginScreen />;
+  }
+
   return (
     <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
       <Stack.Screen name="index" />
@@ -55,9 +65,11 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <GameProvider>
-                <RootLayoutNav />
-              </GameProvider>
+              <AuthProvider>
+                <GameProvider>
+                  <RootLayoutNav />
+                </GameProvider>
+              </AuthProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
