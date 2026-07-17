@@ -6,7 +6,8 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -20,10 +21,29 @@ import LoginScreen from "@/app/login";
 
 SplashScreen.preventAutoHideAsync();
 
+// Handle notifications displayed while app is in the foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { isLoading, user, isGuest } = useAuth();
+
+  // Navigate to daily screen when user taps a notification
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      router.navigate("/(tabs)/daily");
+    });
+    return () => sub.remove();
+  }, []);
 
   if (isLoading) return null;
 

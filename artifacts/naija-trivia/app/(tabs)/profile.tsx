@@ -1,6 +1,5 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import React from "react";
 import {
   Alert,
@@ -8,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -16,6 +16,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { useColors } from "@/hooks/useColors";
+import {
+  formatHour,
+  HOUR_OPTIONS,
+  useNotifications,
+} from "@/hooks/useNotifications";
 
 const TAB_BAR_H = Platform.OS === "ios" ? 88 : 64;
 
@@ -64,9 +69,7 @@ function StatCard({
   const colors = useColors();
   return (
     <View style={[statStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={[statStyles.iconWrap, { backgroundColor: color + "22" }]}>
-        {icon}
-      </View>
+      <View style={[statStyles.iconWrap, { backgroundColor: color + "22" }]}>{icon}</View>
       <Text style={[statStyles.value, { color: colors.foreground }]}>{value}</Text>
       <Text style={[statStyles.label, { color: colors.mutedForeground }]}>{label}</Text>
     </View>
@@ -74,21 +77,10 @@ function StatCard({
 }
 const statStyles = StyleSheet.create({
   card: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-    alignItems: "center",
-    gap: 6,
-    minWidth: "45%",
+    flex: 1, borderRadius: 16, borderWidth: 1, padding: 14,
+    alignItems: "center", gap: 6, minWidth: "45%",
   },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   value: { fontSize: 22, fontFamily: "Inter_700Bold" },
   label: { fontSize: 11, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.4 },
 });
@@ -99,6 +91,7 @@ export default function ProfileScreen() {
   const isWeb = Platform.OS === "web";
   const { user, isGuest, logout } = useAuth();
   const { leaderboard, daily } = useGame();
+  const notif = useNotifications();
 
   const topPad = isWeb ? 67 : insets.top;
   const botPad = (isWeb ? 34 : insets.bottom) + TAB_BAR_H;
@@ -108,7 +101,6 @@ export default function ProfileScreen() {
   const totalQ = leaderboard.reduce((s, e) => s + e.totalQuestions, 0);
   const accuracy = totalQ > 0 ? Math.round((totalScore / totalQ) * 100) : 0;
   const bestStreak = leaderboard.reduce((s, e) => Math.max(s, e.streak), 0);
-  const dailyStreak = daily.streak;
   const gamesPlayed = daily.history.filter((r) => r.completed).length;
 
   const handleLogout = () => {
@@ -125,16 +117,25 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleToggleNotif = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await notif.toggle();
+  };
+
+  const handleHourSelect = async (h: number) => {
+    Haptics.selectionAsync();
+    await notif.setHour(h);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: topPad + 16, paddingBottom: botPad }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section header */}
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Profile</Text>
 
-        {/* Avatar + Identity */}
+        {/* Identity Card */}
         <View style={[styles.identityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {isGuest ? (
             <View style={[avatarStyles.circle, { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.muted, borderColor: colors.border }]}>
@@ -143,7 +144,6 @@ export default function ProfileScreen() {
           ) : (
             <InitialsAvatar name={user?.name ?? "?"} />
           )}
-
           <View style={styles.identityBody}>
             {isGuest ? (
               <>
@@ -151,25 +151,25 @@ export default function ProfileScreen() {
                 <Text style={[styles.emailText, { color: colors.mutedForeground }]}>
                   Scores saved on this device only
                 </Text>
-                <View style={[styles.guestBadge, { backgroundColor: colors.accent + "22", borderColor: colors.accent }]}>
+                <View style={[styles.badge, { backgroundColor: colors.accent + "22", borderColor: colors.accent }]}>
                   <Feather name="user" size={11} color={colors.accent} />
-                  <Text style={[styles.guestBadgeText, { color: colors.accent }]}>Guest Mode</Text>
+                  <Text style={[styles.badgeText, { color: colors.accent }]}>Guest Mode</Text>
                 </View>
               </>
             ) : (
               <>
                 <Text style={[styles.displayName, { color: colors.foreground }]}>{user?.name}</Text>
                 <Text style={[styles.emailText, { color: colors.mutedForeground }]}>{user?.email}</Text>
-                <View style={[styles.verifiedBadge, { backgroundColor: colors.primary + "22", borderColor: colors.primary }]}>
+                <View style={[styles.badge, { backgroundColor: colors.primary + "22", borderColor: colors.primary }]}>
                   <Feather name="check-circle" size={11} color={colors.primary} />
-                  <Text style={[styles.verifiedText, { color: colors.primary }]}>Verified Account</Text>
+                  <Text style={[styles.badgeText, { color: colors.primary }]}>Verified Account</Text>
                 </View>
               </>
             )}
           </View>
         </View>
 
-        {/* Stats */}
+        {/* Stats Grid */}
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>YOUR STATS</Text>
         <View style={styles.statsGrid}>
           <StatCard
@@ -192,32 +192,99 @@ export default function ProfileScreen() {
           />
           <StatCard
             label="Daily Streak"
-            value={String(dailyStreak)}
+            value={String(daily.streak)}
             icon={<MaterialCommunityIcons name="fire" size={18} color="#FF6B35" />}
             color="#FF6B35"
           />
         </View>
 
-        {/* Daily summary */}
-        <View style={[styles.dailySummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.dailySummaryRow}>
+        {/* Daily Summary */}
+        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.summaryRow}>
             <MaterialCommunityIcons name="calendar-check" size={20} color={colors.primary} />
-            <Text style={[styles.dailySummaryLabel, { color: colors.mutedForeground }]}>
-              Daily challenges completed
-            </Text>
-            <Text style={[styles.dailySummaryValue, { color: colors.foreground }]}>{gamesPlayed}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Daily challenges completed</Text>
+            <Text style={[styles.summaryValue, { color: colors.foreground }]}>{gamesPlayed}</Text>
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <View style={styles.dailySummaryRow}>
+          <View style={styles.summaryRow}>
             <MaterialCommunityIcons name="trophy" size={20} color={colors.accent} />
-            <Text style={[styles.dailySummaryLabel, { color: colors.mutedForeground }]}>
-              Longest daily streak
-            </Text>
-            <Text style={[styles.dailySummaryValue, { color: colors.foreground }]}>{daily.longestStreak}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Longest daily streak</Text>
+            <Text style={[styles.summaryValue, { color: colors.foreground }]}>{daily.longestStreak}</Text>
           </View>
         </View>
 
-        {/* Actions */}
+        {/* Notifications */}
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>NOTIFICATIONS</Text>
+        <View style={[styles.notifCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {/* Toggle Row */}
+          <View style={styles.notifToggleRow}>
+            <View style={[styles.notifIconWrap, { backgroundColor: notif.enabled ? "#FF6B3522" : colors.muted + "33" }]}>
+              <MaterialCommunityIcons
+                name="bell-ring-outline"
+                size={20}
+                color={notif.enabled ? "#FF6B35" : colors.mutedForeground}
+              />
+            </View>
+            <View style={styles.notifToggleBody}>
+              <Text style={[styles.notifToggleTitle, { color: colors.foreground }]}>Daily Reminder</Text>
+              <Text style={[styles.notifToggleDesc, { color: colors.mutedForeground }]}>
+                {notif.isWeb
+                  ? "Available on iOS & Android"
+                  : notif.enabled
+                  ? `Reminds you at ${formatHour(notif.hour)}`
+                  : "Get pinged when it's time to play"}
+              </Text>
+            </View>
+            <Switch
+              value={notif.enabled}
+              onValueChange={handleToggleNotif}
+              disabled={notif.loading || notif.isWeb}
+              trackColor={{ false: colors.muted, true: "#FF6B35" }}
+              thumbColor={notif.enabled ? "#FFFFFF" : colors.border}
+              ios_backgroundColor={colors.muted}
+            />
+          </View>
+
+          {/* Time Picker (only when enabled + not web) */}
+          {notif.enabled && !notif.isWeb && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <Text style={[styles.timePickerLabel, { color: colors.mutedForeground }]}>REMIND ME AT</Text>
+              <View style={styles.timePickerRow}>
+                {HOUR_OPTIONS.map((h) => (
+                  <Pressable
+                    key={h}
+                    onPress={() => handleHourSelect(h)}
+                    style={[
+                      styles.timePill,
+                      {
+                        backgroundColor: notif.hour === h ? "#FF6B35" : colors.background,
+                        borderColor: notif.hour === h ? "#FF6B35" : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.timePillText,
+                        { color: notif.hour === h ? "#fff" : colors.mutedForeground },
+                      ]}
+                    >
+                      {formatHour(h)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={[styles.notifNote, { backgroundColor: "#FF6B3511", borderColor: "#FF6B3533" }]}>
+                <MaterialCommunityIcons name="information-outline" size={14} color="#FF6B35" />
+                <Text style={[styles.notifNoteText, { color: "#FF6B35" }]}>
+                  Fires daily at {formatHour(notif.hour)} until you complete the challenge
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Account Actions */}
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>ACCOUNT</Text>
 
         {isGuest ? (
@@ -227,27 +294,28 @@ export default function ProfileScreen() {
               logout();
             }}
             style={({ pressed }) => [
-              styles.signInBtn,
+              styles.actionBtn,
               { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
             ]}
           >
             <Feather name="log-in" size={18} color="#fff" />
-            <Text style={styles.signInBtnText}>Sign In to Sync Scores</Text>
+            <Text style={[styles.actionBtnText, { color: "#fff" }]}>Sign In to Sync Scores</Text>
           </Pressable>
         ) : (
           <Pressable
             onPress={handleLogout}
             style={({ pressed }) => [
-              styles.logoutBtn,
+              styles.actionBtn,
               {
                 backgroundColor: colors.card,
+                borderWidth: 1.5,
                 borderColor: colors.wrong,
                 opacity: pressed ? 0.8 : 1,
               },
             ]}
           >
             <Feather name="log-out" size={18} color={colors.wrong} />
-            <Text style={[styles.logoutText, { color: colors.wrong }]}>Log Out</Text>
+            <Text style={[styles.actionBtnText, { color: colors.wrong }]}>Log Out</Text>
           </Pressable>
         )}
 
@@ -265,101 +333,59 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", marginBottom: 20, letterSpacing: -0.4 },
 
   identityCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 20,
-    gap: 16,
-    marginBottom: 28,
+    flexDirection: "row", alignItems: "center", borderRadius: 20,
+    borderWidth: 1, padding: 20, gap: 16, marginBottom: 28,
   },
   identityBody: { flex: 1, gap: 4 },
   displayName: { fontSize: 20, fontFamily: "Inter_700Bold" },
   emailText: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  guestBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    alignSelf: "flex-start",
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginTop: 4,
+  badge: {
+    flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
+    borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, marginTop: 4,
   },
-  guestBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  verifiedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    alignSelf: "flex-start",
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginTop: 4,
-  },
-  verifiedText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  badgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 
-  sectionLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 1.2,
-    marginBottom: 12,
-  },
+  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1.2, marginBottom: 12 },
 
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
-  },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 16 },
 
-  dailySummary: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 28,
-    gap: 0,
-  },
-  dailySummaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 4,
-  },
-  dailySummaryLabel: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
-  dailySummaryValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  summaryCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 28 },
+  summaryRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+  summaryLabel: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  summaryValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
   divider: { height: 1, marginVertical: 10 },
 
-  signInBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    paddingVertical: 15,
-    gap: 10,
-    marginBottom: 16,
-  },
-  signInBtnText: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  notifCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 28 },
+  notifToggleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  notifIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  notifToggleBody: { flex: 1 },
+  notifToggleTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  notifToggleDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    borderWidth: 1.5,
-    paddingVertical: 15,
-    gap: 10,
-    marginBottom: 16,
+  timePickerLabel: {
+    fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1,
+    textTransform: "uppercase", marginBottom: 10,
   },
-  logoutText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  timePickerRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  timePill: {
+    borderRadius: 20, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  timePillText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  notifNote: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    borderRadius: 10, borderWidth: 1, padding: 10,
+  },
+  notifNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular" },
+
+  actionBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    borderRadius: 14, paddingVertical: 15, gap: 10, marginBottom: 16,
+  },
+  actionBtnText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
 
   versionText: {
-    textAlign: "center",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 8,
-    marginBottom: 8,
+    textAlign: "center", fontSize: 12, fontFamily: "Inter_400Regular",
+    marginTop: 8, marginBottom: 8,
   },
 });
