@@ -33,12 +33,9 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="quiz" options={{ gestureEnabled: false }} />
-      <Stack.Screen name="results" options={{ gestureEnabled: false }} />
-      <Stack.Screen name="leaderboard" />
-      <Stack.Screen name="daily" />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="quiz" options={{ gestureEnabled: false, animation: "slide_from_bottom" }} />
+      <Stack.Screen name="results" options={{ gestureEnabled: false, animation: "slide_from_bottom" }} />
     </Stack>
   );
 }
