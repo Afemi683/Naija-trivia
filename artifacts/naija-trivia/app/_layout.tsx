@@ -6,7 +6,6 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import * as Notifications from "expo-notifications";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -21,28 +20,51 @@ import LoginScreen from "@/app/login";
 
 SplashScreen.preventAutoHideAsync();
 
-// Handle notifications displayed while app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Lazily load expo-notifications — remote push notifications were removed from
+// Expo Go in SDK 53 and the module throws on import in that environment.
+function getNotifications() {
+  try {
+    return require("expo-notifications") as typeof import("expo-notifications");
+  } catch {
+    return null;
+  }
+}
+
+// Set up foreground notification handler if the module is available
+const Notifications = getNotifications();
+if (Notifications) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch {
+    // not available in this environment
+  }
+}
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { isLoading, user, isGuest } = useAuth();
 
-  // Navigate to daily screen when user taps a notification
+  // Navigate to daily screen when user taps a notification (only when available)
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener(() => {
-      router.navigate("/(tabs)/daily");
-    });
-    return () => sub.remove();
+    const notif = getNotifications();
+    if (!notif) return;
+    try {
+      const sub = notif.addNotificationResponseReceivedListener(() => {
+        router.navigate("/(tabs)/daily");
+      });
+      return () => sub.remove();
+    } catch {
+      // not available in this environment
+    }
   }, []);
 
   if (isLoading) return null;
