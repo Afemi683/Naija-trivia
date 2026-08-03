@@ -1,6 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Platform } from "react-native";
+
+// NOTE: In Expo Go (SDK 53+), expo-notifications is replaced with a no-op stub
+// via metro.config.js so this file is safe to import anywhere without crashing.
+// Real push notification behaviour is active only in dev/production builds.
 
 const NOTIF_ENABLED_KEY = "naija_notif_enabled";
 const NOTIF_HOUR_KEY = "naija_notif_hour";
@@ -18,40 +23,23 @@ export function formatHour(h: number): string {
   return `${h - 12}:00 PM`;
 }
 
-// Lazily load expo-notifications so a crash in Expo Go (SDK 53+) doesn't
-// take down the whole app. Returns null when unavailable.
-function getNotifications() {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require("expo-notifications") as typeof import("expo-notifications");
-  } catch {
-    return null;
-  }
-}
-
 async function scheduleDaily(hour: number): Promise<string | null> {
   if (IS_WEB) return null;
-  const Notifications = getNotifications();
-  if (!Notifications) return null;
-  try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "🇳🇬 Daily Challenge Ready!",
-        body: "Keep your streak alive — play today's Naija Trivia challenge!",
-        sound: true,
-        data: { screen: "daily" },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour,
-        minute: 0,
-      } as any,
-    });
-    return id;
-  } catch {
-    return null;
-  }
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "🇳🇬 Daily Challenge Ready!",
+      body: "Keep your streak alive — play today's Naija Trivia challenge!",
+      sound: true,
+      data: { screen: "daily" },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute: 0,
+    } as any,
+  });
+  return id;
 }
 
 export function useNotifications() {
@@ -74,42 +62,24 @@ export function useNotifications() {
       return;
     }
 
-    const Notifications = getNotifications();
-
-    if (!Notifications) {
-      Alert.alert(
-        "Not Available",
-        "Push notifications require a development build. They are not supported in Expo Go from SDK 53 onwards."
-      );
-      return;
-    }
-
     if (!enabled) {
-      try {
-        const { status } = await Notifications.requestPermissionsAsync();
-        if (status !== "granted") {
-          Alert.alert(
-            "Permission Required",
-            "Please enable notifications in your device settings to receive daily reminders.",
-            [{ text: "OK" }]
-          );
-          return;
-        }
-        const id = await scheduleDaily(hour);
-        await AsyncStorage.multiSet([
-          [NOTIF_ENABLED_KEY, "true"],
-          [NOTIF_ID_KEY, id ?? ""],
-        ]);
-        setEnabled(true);
-      } catch {
-        Alert.alert("Error", "Could not enable notifications. Please try again.");
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Please enable notifications in your device settings to receive daily reminders.",
+          [{ text: "OK" }]
+        );
+        return;
       }
+      const id = await scheduleDaily(hour);
+      await AsyncStorage.multiSet([
+        [NOTIF_ENABLED_KEY, "true"],
+        [NOTIF_ID_KEY, id ?? ""],
+      ]);
+      setEnabled(true);
     } else {
-      try {
-        await Notifications.cancelAllScheduledNotificationsAsync();
-      } catch {
-        // ignore
-      }
+      await Notifications.cancelAllScheduledNotificationsAsync();
       await AsyncStorage.multiSet([
         [NOTIF_ENABLED_KEY, "false"],
         [NOTIF_ID_KEY, ""],
