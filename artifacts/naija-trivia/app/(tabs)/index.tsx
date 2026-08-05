@@ -14,12 +14,16 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGame } from "@/context/GameContext";
+import { useNetwork } from "@/context/NetworkContext";
 import { getTodayDateString } from "@/data/daily";
 import { CATEGORIES, Category } from "@/data/questions";
 import { useColors } from "@/hooks/useColors";
 
 const CATEGORY_ORDER: Category[] = ["history", "geography", "current-affairs"];
 const TAB_BAR_H = Platform.OS === "ios" ? 88 : 64;
+
+// Questions available per category in offline mode
+const OFFLINE_QUESTION_COUNT = 10;
 
 function StatItem({ label, value, color }: { label: string; value: string; color: string }) {
   const colors = useColors();
@@ -50,13 +54,31 @@ function StatsBar() {
   );
 }
 
+function OfflineModeCard() {
+  const colors = useColors();
+  return (
+    <View style={[styles.offlineCard, { backgroundColor: "#92400e22", borderColor: "#d97706" }]}>
+      <Feather name="wifi-off" size={16} color="#d97706" />
+      <View style={styles.offlineCardBody}>
+        <Text style={[styles.offlineCardTitle, { color: "#d97706" }]}>Offline Mode</Text>
+        <Text style={[styles.offlineCardDesc, { color: colors.mutedForeground }]}>
+          {OFFLINE_QUESTION_COUNT} questions per category · Progress saved locally · Sync when back online
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function DailyChallengeBanner() {
   const colors = useColors();
+  const { isOnline } = useNetwork();
   const { daily, hasDailyBeenPlayed } = useGame();
   const today = getTodayDateString();
   const played = hasDailyBeenPlayed(today);
   const todayRecord = daily.history.find((r) => r.date === today);
   const scale = useRef(new Animated.Value(1)).current;
+
+  // Daily challenge is available offline (questions are bundled)
   return (
     <Animated.View style={[styles.dailyWrap, { transform: [{ scale }] }]}>
       <Pressable
@@ -98,6 +120,11 @@ function DailyChallengeBanner() {
               </Text>
             </View>
           )}
+          {!isOnline && !played && (
+            <Text style={[styles.dailyOfflineNote, { color: "rgba(255,255,255,0.7)" }]}>
+              Available offline
+            </Text>
+          )}
         </View>
         <Feather name="chevron-right" size={20} color={played ? colors.mutedForeground : "rgba(255,255,255,0.7)"} />
       </Pressable>
@@ -107,10 +134,12 @@ function DailyChallengeBanner() {
 
 function CategoryCard({ category }: { category: Category }) {
   const colors = useColors();
+  const { isOnline } = useNetwork();
   const { getBestForCategory } = useGame();
   const scale = useRef(new Animated.Value(1)).current;
   const info = CATEGORIES[category];
   const best = getBestForCategory(category);
+
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
@@ -137,7 +166,14 @@ function CategoryCard({ category }: { category: Category }) {
             <Text style={[styles.notPlayed, { color: colors.mutedForeground }]}>Not played yet</Text>
           )}
         </View>
-        <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+        <View style={styles.cardRight}>
+          {!isOnline && (
+            <View style={[styles.offlinePill, { backgroundColor: "#92400e22", borderColor: "#d97706" }]}>
+              <Text style={[styles.offlinePillText, { color: "#d97706" }]}>{OFFLINE_QUESTION_COUNT}Q</Text>
+            </View>
+          )}
+          <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -146,6 +182,7 @@ function CategoryCard({ category }: { category: Category }) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { isOnline } = useNetwork();
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
   const botPad = (isWeb ? 34 : insets.bottom) + TAB_BAR_H;
@@ -161,13 +198,19 @@ export default function HomeScreen() {
           <View style={[styles.flagStrip, { backgroundColor: colors.foreground }]} />
           <View style={[styles.flagStrip, { backgroundColor: colors.primary }]} />
           <Text style={[styles.appTitle, { color: colors.foreground }]}>Naija Trivia</Text>
-          <Text style={[styles.appSubtitle, { color: colors.mutedForeground }]}>Test your knowledge of Nigeria</Text>
+          <Text style={[styles.appSubtitle, { color: colors.mutedForeground }]}>
+            {isOnline ? "Test your knowledge of Nigeria" : "Offline · Limited mode"}
+          </Text>
         </View>
+
+        {!isOnline && <OfflineModeCard />}
 
         <StatsBar />
         <DailyChallengeBanner />
 
-        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>CHOOSE A CATEGORY</Text>
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+          CHOOSE A CATEGORY{!isOnline ? " · OFFLINE" : ""}
+        </Text>
         {CATEGORY_ORDER.map((cat) => (
           <CategoryCard key={cat} category={cat} />
         ))}
@@ -183,6 +226,20 @@ const styles = StyleSheet.create({
   flagStrip: { width: 40, height: 4, borderRadius: 2, marginBottom: 3 },
   appTitle: { fontSize: 34, fontFamily: "Inter_700Bold", marginTop: 12, letterSpacing: -0.5 },
   appSubtitle: { fontSize: 15, fontFamily: "Inter_400Regular", marginTop: 4 },
+
+  offlineCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  offlineCardBody: { flex: 1 },
+  offlineCardTitle: { fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 3 },
+  offlineCardDesc: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+
   statsBar: { flexDirection: "row", borderRadius: 16, borderWidth: 1, marginBottom: 16, overflow: "hidden" },
   statItem: { flex: 1, alignItems: "center", paddingVertical: 16 },
   statValue: { fontSize: 22, fontFamily: "Inter_700Bold" },
@@ -201,6 +258,13 @@ const styles = StyleSheet.create({
   bestRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   bestText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   notPlayed: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  cardRight: { flexDirection: "column", alignItems: "center", gap: 6 },
+  offlinePill: {
+    borderRadius: 8, borderWidth: 1,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  offlinePillText: { fontSize: 10, fontFamily: "Inter_700Bold" },
+
   dailyWrap: { marginBottom: 24 },
   dailyBanner: { flexDirection: "row", alignItems: "center", borderRadius: 18, borderWidth: 1, padding: 16, gap: 14 },
   dailyIconWrap: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center" },
@@ -209,4 +273,5 @@ const styles = StyleSheet.create({
   dailyTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 20 },
   dailyStreakRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   dailyStreakText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  dailyOfflineNote: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

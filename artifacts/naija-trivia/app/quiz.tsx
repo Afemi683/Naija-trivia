@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useNetwork } from "@/context/NetworkContext";
+import { getOfflineQuestions } from "@/data/offline-questions";
 import { Category, Question, getRandomQuestions } from "@/data/questions";
 import { useColors } from "@/hooks/useColors";
 
@@ -23,12 +25,18 @@ type AnswerState = "unanswered" | "correct" | "wrong";
 
 export default function QuizScreen() {
   const { category } = useLocalSearchParams<{ category: Category }>();
+  const { isOnline } = useNetwork();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
 
+  const cat = category ?? "history";
+
+  // Online: full random pool (200 questions). Offline: fixed 10-question bank.
   const [questions] = useState<Question[]>(() =>
-    getRandomQuestions(category ?? "history", QUESTION_COUNT)
+    isOnline
+      ? getRandomQuestions(cat, QUESTION_COUNT)
+      : getOfflineQuestions(cat)
   );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -97,12 +105,13 @@ export default function QuizScreen() {
       router.replace({
         pathname: "/results",
         params: {
-          category: category ?? "history",
+          category: cat,
           score: String(score + (answerState === "correct" ? 0 : 0)),
           finalScore: String(answerState === "correct" ? score : score),
           totalQuestions: String(questions.length),
           streak: String(maxStreak),
           timeMs: String(elapsed),
+          offlineMode: isOnline ? "0" : "1",
         },
       });
     } else {
@@ -112,7 +121,7 @@ export default function QuizScreen() {
       setTimeLeft(TIMER_SECONDS);
       timerAnim.setValue(1);
     }
-  }, [currentIndex, questions.length, score, answerState, maxStreak, category, startTime, timerAnim]);
+  }, [currentIndex, questions.length, score, answerState, maxStreak, cat, startTime, timerAnim, isOnline]);
 
   useEffect(() => {
     if (answerState !== "unanswered") {
@@ -156,6 +165,14 @@ export default function QuizScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Offline mode chip */}
+      {!isOnline && (
+        <View style={[styles.offlineChip, { top: topPad + 52, backgroundColor: "#dc262622", borderColor: "#dc2626" }]}>
+          <Feather name="wifi-off" size={11} color="#dc2626" />
+          <Text style={[styles.offlineChipText, { color: "#dc2626" }]}>Offline · Limited questions</Text>
+        </View>
+      )}
+
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
@@ -370,6 +387,19 @@ function AnswerOption({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 20 },
+  offlineChip: {
+    position: "absolute",
+    alignSelf: "center",
+    zIndex: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  offlineChipText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   topBar: {
     flexDirection: "row",
     alignItems: "center",

@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
+import { useNetwork } from "@/context/NetworkContext";
 import { useColors } from "@/hooks/useColors";
 import {
   formatHour,
@@ -85,12 +86,67 @@ const statStyles = StyleSheet.create({
   label: { fontSize: 11, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.4 },
 });
 
+/** Network status row shown at the top of the profile card. */
+function NetworkStatusRow() {
+  const colors = useColors();
+  const { isOnline } = useNetwork();
+  const { pendingSyncCount } = useGame();
+
+  return (
+    <View style={[netStyles.row, {
+      backgroundColor: isOnline ? colors.primary + "11" : "#92400e22",
+      borderColor: isOnline ? colors.primary + "44" : "#d97706",
+    }]}>
+      <Feather
+        name={isOnline ? "wifi" : "wifi-off"}
+        size={14}
+        color={isOnline ? colors.primary : "#d97706"}
+      />
+      <Text style={[netStyles.text, { color: isOnline ? colors.primary : "#d97706" }]}>
+        {isOnline ? "Online · Full access" : "Offline · Limited mode"}
+      </Text>
+      {pendingSyncCount > 0 && (
+        <View style={[netStyles.badge, { backgroundColor: colors.accent + "22", borderColor: colors.accent }]}>
+          <MaterialCommunityIcons name="cloud-upload-outline" size={11} color={colors.accent} />
+          <Text style={[netStyles.badgeText, { color: colors.accent }]}>
+            {pendingSyncCount} pending sync
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+const netStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    marginBottom: 16,
+  },
+  text: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  badgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+});
+
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { user, isGuest, logout } = useAuth();
-  const { leaderboard, daily } = useGame();
+  const { user, isGuest, isOfflineGuest, logout } = useAuth();
+  const { leaderboard, daily, pendingSyncCount } = useGame();
+  const { isOnline } = useNetwork();
   const notif = useNotifications();
 
   const topPad = isWeb ? 67 : insets.top;
@@ -102,6 +158,7 @@ export default function ProfileScreen() {
   const accuracy = totalQ > 0 ? Math.round((totalScore / totalQ) * 100) : 0;
   const bestStreak = leaderboard.reduce((s, e) => Math.max(s, e.streak), 0);
   const gamesPlayed = daily.history.filter((r) => r.completed).length;
+  const offlineGames = leaderboard.filter((e) => e.offlineMode).length;
 
   const handleLogout = () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
@@ -127,6 +184,12 @@ export default function ProfileScreen() {
     await notif.setHour(h);
   };
 
+  // Determine guest display label
+  const guestLabel = isOfflineGuest ? "Offline Guest" : "Guest";
+  const guestDesc = isOfflineGuest
+    ? "Signed in offline · Sync when back online"
+    : "Scores saved on this device only";
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
@@ -134,6 +197,9 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Profile</Text>
+
+        {/* Network status */}
+        <NetworkStatusRow />
 
         {/* Identity Card */}
         <View style={[styles.identityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -147,13 +213,15 @@ export default function ProfileScreen() {
           <View style={styles.identityBody}>
             {isGuest ? (
               <>
-                <Text style={[styles.displayName, { color: colors.foreground }]}>Guest</Text>
+                <Text style={[styles.displayName, { color: colors.foreground }]}>{guestLabel}</Text>
                 <Text style={[styles.emailText, { color: colors.mutedForeground }]}>
-                  Scores saved on this device only
+                  {guestDesc}
                 </Text>
                 <View style={[styles.badge, { backgroundColor: colors.accent + "22", borderColor: colors.accent }]}>
-                  <Feather name="user" size={11} color={colors.accent} />
-                  <Text style={[styles.badgeText, { color: colors.accent }]}>Guest Mode</Text>
+                  <Feather name={isOfflineGuest ? "wifi-off" : "user"} size={11} color={colors.accent} />
+                  <Text style={[styles.badgeText, { color: colors.accent }]}>
+                    {isOfflineGuest ? "Offline Mode" : "Guest Mode"}
+                  </Text>
                 </View>
               </>
             ) : (
@@ -211,6 +279,26 @@ export default function ProfileScreen() {
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Longest daily streak</Text>
             <Text style={[styles.summaryValue, { color: colors.foreground }]}>{daily.longestStreak}</Text>
           </View>
+          {offlineGames > 0 && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.summaryRow}>
+                <Feather name="wifi-off" size={20} color="#d97706" />
+                <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Games played offline</Text>
+                <Text style={[styles.summaryValue, { color: colors.foreground }]}>{offlineGames}</Text>
+              </View>
+            </>
+          )}
+          {pendingSyncCount > 0 && isOnline && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.summaryRow}>
+                <MaterialCommunityIcons name="cloud-upload-outline" size={20} color={colors.accent} />
+                <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Entries pending sync</Text>
+                <Text style={[styles.summaryValue, { color: colors.accent }]}>{pendingSyncCount}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Notifications */}
@@ -295,11 +383,16 @@ export default function ProfileScreen() {
             }}
             style={({ pressed }) => [
               styles.actionBtn,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+              {
+                backgroundColor: isOnline ? colors.primary : colors.muted,
+                opacity: pressed ? 0.85 : 1,
+              },
             ]}
           >
-            <Feather name="log-in" size={18} color="#fff" />
-            <Text style={[styles.actionBtnText, { color: "#fff" }]}>Sign In to Sync Scores</Text>
+            <Feather name="log-in" size={18} color={isOnline ? "#fff" : colors.mutedForeground} />
+            <Text style={[styles.actionBtnText, { color: isOnline ? "#fff" : colors.mutedForeground }]}>
+              {isOnline ? "Sign In to Sync Scores" : "Sign In (requires internet)"}
+            </Text>
           </Pressable>
         ) : (
           <Pressable
@@ -320,7 +413,7 @@ export default function ProfileScreen() {
         )}
 
         <Text style={[styles.versionText, { color: colors.mutedForeground }]}>
-          Naija Trivia · v1.0.0
+          Naija Trivia · v1.0.0 · {isOnline ? "Online" : "Offline"} Mode
         </Text>
       </ScrollView>
     </View>
@@ -330,7 +423,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 20 },
-  pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", marginBottom: 20, letterSpacing: -0.4 },
+  pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", marginBottom: 12, letterSpacing: -0.4 },
 
   identityCard: {
     flexDirection: "row", alignItems: "center", borderRadius: 20,

@@ -63,8 +63,9 @@ export function useNotifications() {
     }
 
     if (!enabled) {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== "granted") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const perms = (await Notifications.requestPermissionsAsync()) as any;
+      if (!perms.granted && perms.status !== "granted") {
         Alert.alert(
           "Permission Required",
           "Please enable notifications in your device settings to receive daily reminders.",

@@ -18,10 +18,14 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   isGuest: boolean;
+  /** True when the user entered guest mode automatically due to no network. */
+  isOfflineGuest: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   continueAsGuest: () => void;
+  /** Attempt to re-authenticate with a stored token (called on reconnect). */
+  tryRestoreSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -58,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const [isOfflineGuest, setIsOfflineGuest] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -81,14 +86,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { user: u } = data as { user: AuthUser };
             setUser(u);
             setToken(storedToken);
-          } catch {
-            await AsyncStorage.removeItem(TOKEN_KEY);
+          } catch (err) {
+            const isNetworkError = isOfflineError(err);
+            if (isNetworkError) {
+              // Network unavailable — keep the token stored and enter offline
+              // guest mode so the app still loads.  On reconnect, tryRestoreSession
+              // will pick this up and re-authenticate silently.
+              setIsOfflineGuest(true);
+              setIsGuest(true);
+            } else {
+              // Token is genuinely invalid — clear it.
+              await AsyncStorage.removeItem(TOKEN_KEY);
+            }
           }
         }
       } finally {
         setIsLoading(false);
       }
     })();
+  }, []);
+
+  /** Silently re-authenticate using a stored token (e.g. after reconnect). */
+  const tryRestoreSession = useCallback(async () => {
+    const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
+    if (!storedToken) return;
+    try {
+      const data = await apiFetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      });
+      const { user: u } = data as { user: AuthUser };
+      setUser(u);
+      setToken(storedToken);
+      setIsGuest(false);
+      setIsOfflineGuest(false);
+    } catch {
+      // Still offline or token expired — leave state as-is.
+    }
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -102,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(t);
     setUser(u);
     setIsGuest(false);
+    setIsOfflineGuest(false);
   }, []);
 
   const register = useCallback(
@@ -116,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(t);
       setUser(u);
       setIsGuest(false);
+      setIsOfflineGuest(false);
     },
     []
   );
@@ -125,11 +160,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setIsGuest(false);
+    setIsOfflineGuest(false);
   }, []);
 
   const continueAsGuest = useCallback(() => {
     AsyncStorage.setItem(GUEST_KEY, "true").catch(() => null);
     setIsGuest(true);
+    setIsOfflineGuest(false);
   }, []);
 
   return (
@@ -139,10 +176,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         isLoading,
         isGuest,
+        isOfflineGuest,
         login,
         register,
         logout,
         continueAsGuest,
+        tryRestoreSession,
       }}
     >
       {children}
@@ -154,4 +193,18 @@ export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
+}
+
+/** Heuristic: is this error likely a network/connectivity failure? */
+function isOfflineError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("network") ||
+    msg.includes("fetch") ||
+    msg.includes("failed to fetch") ||
+    msg.includes("econnrefused") ||
+    msg.includes("etimedout") ||
+    msg.includes("network request failed")
+  );
 }
