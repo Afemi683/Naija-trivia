@@ -33,7 +33,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = "naija_trivia_auth_token";
 const GUEST_KEY = "naija_trivia_guest_mode";
 
-const API_BASE = "";
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ??"";
 
 async function apiFetch(
   path: string,

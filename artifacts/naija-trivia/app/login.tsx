@@ -15,58 +15,57 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useColors } from "@/hooks/useColors";
 
-const COLORS = {
-  bg: "#0B1426",
-  card: "#152035",
-  green: "#00B368",
-  greenDark: "#008751",
-  gold: "#E9A012",
-  white: "#FFFFFF",
-  muted: "#8899B4",
-  inputBg: "#1E2F47",
-  border: "#243650",
-  error: "#F87171",
-};
+type Colors = ReturnType<typeof useColors>;
 
-function NigeriaStripes() {
+function NigeriaStripes({ colors }: { colors: Colors }) {
   return (
     <View style={styles.stripes}>
-      <View style={[styles.stripe, { backgroundColor: COLORS.greenDark }]} />
-      <View style={[styles.stripe, { backgroundColor: "#FFFFFF" }]} />
-      <View style={[styles.stripe, { backgroundColor: COLORS.greenDark }]} />
+      <View style={[styles.stripe, { backgroundColor: colors.primary }]} />
+      <View style={[styles.stripe, { backgroundColor: colors.card }]} />
+      <View style={[styles.stripe, { backgroundColor: colors.primary }]} />
     </View>
   );
 }
 
-function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function TabButton({
+  label, active, onPress, colors,
+}: { label: string; active: boolean; onPress: () => void; colors: Colors }) {
   return (
-    <TouchableOpacity style={[styles.tab, active && styles.tabActive]} onPress={onPress} activeOpacity={0.8}>
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+    <TouchableOpacity
+      style={[styles.tab, active && { backgroundColor: colors.primary }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Text style={[styles.tabText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
 
 function FormInput({
   label, value, onChangeText, placeholder, secureTextEntry = false,
-  autoCapitalize = "none", keyboardType = "default",
+  autoCapitalize = "none", keyboardType = "default", colors,
 }: {
   label: string; value: string; onChangeText: (v: string) => void;
   placeholder: string; secureTextEntry?: boolean;
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   keyboardType?: "default" | "email-address";
+  colors: Colors;
 }) {
   const [showPassword, setShowPassword] = useState(false);
   return (
     <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <View style={styles.inputWrapper}>
+      <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <View style={[styles.inputWrapper, { backgroundColor: colors.input, borderColor: colors.border }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.foreground }]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.muted}
+          placeholderTextColor={colors.mutedForeground}
           secureTextEntry={secureTextEntry && !showPassword}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
@@ -74,7 +73,7 @@ function FormInput({
         />
         {secureTextEntry && (
           <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword((p) => !p)}>
-            <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={COLORS.muted} />
+            <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
           </TouchableOpacity>
         )}
       </View>
@@ -126,6 +125,7 @@ function XIcon({ color }: { color: string }) {
 }
 
 export default function LoginScreen() {
+  const colors = useColors();
   const { login, register, continueAsGuest } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
@@ -184,7 +184,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -193,19 +193,19 @@ export default function LoginScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <NigeriaStripes />
-            <View style={styles.logoCircle}>
+            <NigeriaStripes colors={colors} />
+            <View style={[styles.logoCircle, { backgroundColor: colors.card, borderColor: colors.primary }]}>
               <Text style={styles.logoEmoji}>🇳🇬</Text>
             </View>
-            <Text style={styles.appTitle}>Naija Trivia</Text>
-            <Text style={styles.appTagline}>Test your knowledge of Nigeria</Text>
+            <Text style={[styles.appTitle, { color: colors.foreground }]}>Naija Trivia</Text>
+            <Text style={[styles.appTagline, { color: colors.mutedForeground }]}>Test your knowledge of Nigeria</Text>
           </View>
 
           {/* Card */}
-          <View style={styles.card}>
-            <View style={styles.tabs}>
-              <TabButton label="Log In" active={mode === "login"} onPress={() => switchMode("login")} />
-              <TabButton label="Sign Up" active={mode === "register"} onPress={() => switchMode("register")} />
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.tabs, { backgroundColor: colors.background }]}>
+              <TabButton label="Log In" active={mode === "login"} onPress={() => switchMode("login")} colors={colors} />
+              <TabButton label="Sign Up" active={mode === "register"} onPress={() => switchMode("register")} colors={colors} />
             </View>
 
             {/* Social Auth Buttons */}
@@ -238,9 +238,9 @@ export default function LoginScreen() {
 
             {/* Divider */}
             <View style={styles.orDivider}>
-              <View style={[styles.dividerLine, { backgroundColor: COLORS.border }]} />
-              <Text style={styles.orText}>or use email</Text>
-              <View style={[styles.dividerLine, { backgroundColor: COLORS.border }]} />
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <Text style={[styles.orText, { color: colors.mutedForeground }]}>or use email</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
             </View>
 
             {/* Email/Password Form */}
@@ -252,6 +252,7 @@ export default function LoginScreen() {
                   onChangeText={setName}
                   placeholder="Enter your name"
                   autoCapitalize="words"
+                  colors={colors}
                 />
               )}
               <FormInput
@@ -260,6 +261,7 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 placeholder="Enter your email"
                 keyboardType="email-address"
+                colors={colors}
               />
               <FormInput
                 label="Password"
@@ -267,25 +269,26 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 placeholder={mode === "register" ? "Create a password (6+ chars)" : "Enter your password"}
                 secureTextEntry
+                colors={colors}
               />
 
               {error && (
                 <View style={styles.errorBox}>
-                  <Feather name="alert-circle" size={14} color={COLORS.error} />
-                  <Text style={styles.errorText}>{error}</Text>
+                  <Feather name="alert-circle" size={14} color={colors.destructive} />
+                  <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
                 </View>
               )}
 
               <TouchableOpacity
-                style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+                style={[styles.submitBtn, { backgroundColor: colors.primary }, isSubmitting && styles.submitBtnDisabled]}
                 onPress={handleSubmit}
                 disabled={isSubmitting}
                 activeOpacity={0.85}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator color={COLORS.white} size="small" />
+                  <ActivityIndicator color={colors.primaryForeground} size="small" />
                 ) : (
-                  <Text style={styles.submitBtnText}>
+                  <Text style={[styles.submitBtnText, { color: colors.primaryForeground }]}>
                     {mode === "login" ? "Log In" : "Create Account"}
                   </Text>
                 )}
@@ -295,17 +298,21 @@ export default function LoginScreen() {
 
           {/* Guest option */}
           <View style={styles.guestContainer}>
-            <View style={[styles.dividerLine, { backgroundColor: COLORS.border }]} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={[styles.dividerLine, { backgroundColor: COLORS.border }]} />
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>or</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
-          <TouchableOpacity style={styles.guestBtn} onPress={continueAsGuest} activeOpacity={0.7}>
-            <Feather name="user" size={16} color={COLORS.muted} />
-            <Text style={styles.guestBtnText}>Continue as Guest</Text>
+          <TouchableOpacity
+            style={[styles.guestBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+            onPress={continueAsGuest}
+            activeOpacity={0.7}
+          >
+            <Feather name="user" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.guestBtnText, { color: colors.mutedForeground }]}>Continue as Guest</Text>
           </TouchableOpacity>
 
-          <Text style={styles.guestNote}>Scores will not sync across devices</Text>
+          <Text style={[styles.guestNote, { color: colors.mutedForeground }]}>Scores will not sync across devices</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -313,7 +320,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
+  safe: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 32 },
 
   header: { alignItems: "center", paddingTop: 40, paddingBottom: 28 },
@@ -321,20 +328,18 @@ const styles = StyleSheet.create({
   stripe: { width: 36, height: 6 },
   logoCircle: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: COLORS.card, alignItems: "center", justifyContent: "center",
-    marginBottom: 16, borderWidth: 2, borderColor: COLORS.green,
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 16, borderWidth: 2,
   },
   logoEmoji: { fontSize: 36 },
-  appTitle: { fontSize: 32, fontFamily: "Inter_700Bold", color: COLORS.white, letterSpacing: -0.5, marginBottom: 6 },
-  appTagline: { fontSize: 15, fontFamily: "Inter_400Regular", color: COLORS.muted },
+  appTitle: { fontSize: 32, fontFamily: "Inter_700Bold", letterSpacing: -0.5, marginBottom: 6 },
+  appTagline: { fontSize: 15, fontFamily: "Inter_400Regular" },
 
-  card: { backgroundColor: COLORS.card, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: COLORS.border },
+  card: { borderRadius: 20, padding: 24, borderWidth: 1 },
 
-  tabs: { flexDirection: "row", backgroundColor: COLORS.bg, borderRadius: 12, padding: 4, marginBottom: 20 },
+  tabs: { flexDirection: "row", borderRadius: 12, padding: 4, marginBottom: 20 },
   tab: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10 },
-  tabActive: { backgroundColor: COLORS.green },
-  tabText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: COLORS.muted },
-  tabTextActive: { color: COLORS.white },
+  tabText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
   socialSection: { gap: 10, marginBottom: 20 },
   socialBtn: {
@@ -354,16 +359,16 @@ const styles = StyleSheet.create({
 
   orDivider: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
   dividerLine: { flex: 1, height: 1 },
-  orText: { fontSize: 12, fontFamily: "Inter_400Regular", color: COLORS.muted },
+  orText: { fontSize: 12, fontFamily: "Inter_400Regular" },
 
   form: { gap: 16 },
   inputGroup: { gap: 6 },
-  inputLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.5 },
+  inputLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5 },
   inputWrapper: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: COLORS.inputBg, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 12, borderWidth: 1,
   },
-  input: { flex: 1, height: 50, paddingHorizontal: 16, fontSize: 15, fontFamily: "Inter_400Regular", color: COLORS.white },
+  input: { flex: 1, height: 50, paddingHorizontal: 16, fontSize: 15, fontFamily: "Inter_400Regular" },
   eyeBtn: { paddingHorizontal: 14, height: 50, justifyContent: "center" },
 
   errorBox: {
@@ -371,18 +376,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(248, 113, 113, 0.1)", borderRadius: 10,
     paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(248, 113, 113, 0.2)",
   },
-  errorText: { fontSize: 13, fontFamily: "Inter_400Regular", color: COLORS.error, flex: 1 },
+  errorText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 
-  submitBtn: { height: 52, backgroundColor: COLORS.green, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  submitBtn: { height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4 },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: COLORS.white, letterSpacing: 0.2 },
+  submitBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", letterSpacing: 0.2 },
 
   guestContainer: { flexDirection: "row", alignItems: "center", marginTop: 20, marginBottom: 14, gap: 12 },
-  dividerText: { fontSize: 12, fontFamily: "Inter_400Regular", color: COLORS.muted },
+  dividerText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   guestBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card,
+    paddingVertical: 14, borderRadius: 14, borderWidth: 1,
   },
-  guestBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: COLORS.muted },
-  guestNote: { textAlign: "center", fontSize: 12, fontFamily: "Inter_400Regular", color: COLORS.muted, marginTop: 10, opacity: 0.7 },
+  guestBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  guestNote: { textAlign: "center", fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 10, opacity: 0.7 },
 });
