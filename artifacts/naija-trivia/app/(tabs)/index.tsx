@@ -43,6 +43,18 @@ function StatsBar() {
   const totalQ = leaderboard.reduce((s, e) => s + e.totalQuestions, 0);
   const accuracy = totalQ > 0 ? Math.round((totalScore / totalQ) * 100) : 0;
   const bestStreak = leaderboard.reduce((s, e) => Math.max(s, e.streak), 0);
+
+  if (totalGames === 0) {
+    return (
+      <View style={[styles.emptyStatsBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name="play-circle" size={18} color={colors.primary} />
+        <Text style={[styles.emptyStatsText, { color: colors.mutedForeground }]}>
+          Play your first quiz to start tracking stats!
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.statsBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <StatItem label="Games" value={String(totalGames)} color={colors.primary} />
@@ -151,7 +163,7 @@ function CategoryCard({ category }: { category: Category }) {
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: info.color, shadowColor: info.color }]}
       >
-        <View style={[styles.cardIconWrap, { backgroundColor: info.color + "22" }]}>
+        <View style={[styles.cardIconWrap, { backgroundColor: info.color + "33" }]}>
           <Feather name={info.icon as any} size={26} color={info.color} />
         </View>
         <View style={styles.cardBody}>
@@ -163,7 +175,9 @@ function CategoryCard({ category }: { category: Category }) {
               <Text style={[styles.bestText, { color: colors.accent }]}>Best: {best.score}/{best.totalQuestions}</Text>
             </View>
           ) : (
-            <Text style={[styles.notPlayed, { color: colors.mutedForeground }]}>Not played yet</Text>
+            <View style={[styles.newPill, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Text style={[styles.newPillText, { color: colors.mutedForeground }]}>New</Text>
+            </View>
           )}
         </View>
         <View style={styles.cardRight}>
@@ -241,6 +255,11 @@ const styles = StyleSheet.create({
   offlineCardDesc: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
 
   statsBar: { flexDirection: "row", borderRadius: 16, borderWidth: 1, marginBottom: 16, overflow: "hidden" },
+  emptyStatsBar: {
+    flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 16, borderWidth: 1,
+    padding: 16, marginBottom: 16,
+  },
+  emptyStatsText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
   statItem: { flex: 1, alignItems: "center", paddingVertical: 16 },
   statValue: { fontSize: 22, fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 2, textTransform: "uppercase", letterSpacing: 0.5 },
@@ -257,7 +276,11 @@ const styles = StyleSheet.create({
   cardDesc: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 6 },
   bestRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   bestText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  notPlayed: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  newPill: {
+    alignSelf: "flex-start", borderRadius: 6, borderWidth: 1,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  newPillText: { fontSize: 10, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.4 },
   cardRight: { flexDirection: "column", alignItems: "center", gap: 6 },
   offlinePill: {
     borderRadius: 8, borderWidth: 1,

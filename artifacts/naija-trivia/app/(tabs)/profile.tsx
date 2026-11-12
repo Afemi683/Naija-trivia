@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { useNetwork } from "@/context/NetworkContext";
+import { ThemePreference, useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import {
   formatHour,
@@ -84,6 +85,50 @@ const statStyles = StyleSheet.create({
   iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   value: { fontSize: 22, fontFamily: "Inter_700Bold" },
   label: { fontSize: 11, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.4 },
+});
+
+/** One segment of the Light / Dark / System appearance picker. */
+function ThemeOptionButton({
+  pref,
+  label,
+  icon,
+}: {
+  pref: ThemePreference;
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+}) {
+  const colors = useColors();
+  const { preference, setPreference } = useTheme();
+  const active = preference === pref;
+  return (
+    <Pressable
+      onPress={() => {
+        Haptics.selectionAsync();
+        setPreference(pref);
+      }}
+      style={[
+        themeStyles.option,
+        { backgroundColor: active ? colors.primary : "transparent" },
+      ]}
+    >
+      <Feather name={icon} size={16} color={active ? colors.primaryForeground : colors.mutedForeground} />
+      <Text style={[themeStyles.optionText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+const themeStyles = StyleSheet.create({
+  option: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  optionText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });
 
 /** Network status row shown at the top of the profile card. */
@@ -370,6 +415,14 @@ export default function ProfileScreen() {
               </View>
             </>
           )}
+        </View>
+
+        {/* Appearance */}
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>APPEARANCE</Text>
+        <View style={[styles.notifCard, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: "row", padding: 6, gap: 6 }]}>
+          <ThemeOptionButton pref="light" label="Light" icon="sun" />
+          <ThemeOptionButton pref="dark" label="Dark" icon="moon" />
+          <ThemeOptionButton pref="system" label="System" icon="smartphone" />
         </View>
 
         {/* Account Actions */}

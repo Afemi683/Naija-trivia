@@ -19,6 +19,7 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { GameProvider, useGame } from "@/context/GameContext";
 import { NetworkProvider, useNetwork } from "@/context/NetworkContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import LoginScreen from "@/app/login";
 
 SplashScreen.preventAutoHideAsync();
@@ -100,25 +101,27 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
-        <NetworkProvider>
-          <QueryClientProvider client={queryClient}>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
-                <AuthProvider>
-                  <GameProvider>
-                    {/* Reconnect sync watcher — needs auth + game context */}
-                    <ReconnectSync />
-                    {/* Floating offline/online banner — always on top */}
-                    <OfflineBanner />
-                    <RootLayoutNav />
-                  </GameProvider>
-                </AuthProvider>
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </QueryClientProvider>
-        </NetworkProvider>
-      </ErrorBoundary>
+      <ThemeProvider>
+        <ErrorBoundary>
+          <NetworkProvider>
+            <QueryClientProvider client={queryClient}>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardProvider>
+                  <AuthProvider>
+                    <GameProvider>
+                      {/* Reconnect sync watcher — needs auth + game context */}
+                      <ReconnectSync />
+                      {/* Floating offline/online banner — always on top */}
+                      <OfflineBanner />
+                      <RootLayoutNav />
+                    </GameProvider>
+                  </AuthProvider>
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </QueryClientProvider>
+          </NetworkProvider>
+        </ErrorBoundary>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
